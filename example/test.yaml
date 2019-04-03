@@ -1,0 +1,22 @@
+--- 
+Architecture: # processor architecture
+  base: int 
+  items: 
+    - unknown
+    - x86 # 32-bit
+    - x64 # 64-bit 
+    - arm # ARM 
+    - ppc # PowerPC
+
+PackageManager: # package manager
+  base: uint32
+  items:
+    - unknown
+    - dpkg
+    - apk
+    - apt
+    - yum
+    - zypper
+    - brew
+    - chocolatey
+    - msi
