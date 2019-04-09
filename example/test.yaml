@@ -20,3 +20,11 @@ PackageManager: # package manager
     - brew
     - chocolatey
     - msi
+
+AddressKind: # Type of address (Home|Office|PostalBox)
+  base: int64 
+  items: 
+    - Unknown
+    - Home # Home address
+    - Office # Office address
+    - PostalBox # PO Box address
