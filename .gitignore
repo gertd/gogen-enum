@@ -13,6 +13,7 @@
 
 # exclude binery files
 debug
+test 
 
 # exclude directories
 bin/

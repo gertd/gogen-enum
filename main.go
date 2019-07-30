@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -12,7 +13,11 @@ import (
 	"unicode"
 
 	"github.com/iancoleman/strcase"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
+)
+
+const (
+	name = "gogen-enum"
 )
 
 var (
@@ -22,36 +27,22 @@ var (
 )
 
 var funcMap = template.FuncMap{
-	"first": func(s string) string {
-		return strings.ToLower(string(s[0]))
-	},
-	"toLower": func(s string) string {
-		return strings.ToLower(s)
-	},
-	"camelCase": func(s string) string {
-		return strcase.ToCamel(s)
-	},
-	"lowerCamelCase": func(s string) string {
-		return strcase.ToLowerCamel(s)
-	},
-	"snakeCase": func(s string) string {
-		return snakeCase(s)
-	},
-	"lintName": func(s string) string {
-		return lintName(s)
-	},
-	"jsonEncode": func(s string) string {
-		return fmt.Sprintf("json:\"%s\"", s)
-	},
-	"jsonEncodeOmitEmpty": func(s string) string {
-		return fmt.Sprintf("json:\"%s,omitempty\"", s)
-	},
-	"backTick": func(s string) string {
-		return fmt.Sprintf("`%s`", s)
-	},
-	"base64Encode": func() string {
-		return "encode:\"base64\""
-	},
+	"pubIdent":            publicIdentifier,
+	"privIdent":           privateIdentifier,
+	"first":               first,
+	"toLower":             strings.ToLower,
+	"toUpper":             strings.ToUpper,
+	"titleCase":           strings.ToTitle,
+	"camelCase":           strcase.ToCamel,
+	"lowerCamelCase":      strcase.ToLowerCamel,
+	"snakeCase":           snakeCase,
+	"lintName":            lintName,
+	"jsonEncode":          jsonEncode,
+	"jsonEncodeOmitEmpty": jsonEncodeOmitEmpty,
+	"backTick":            backTick,
+	"base64Encode":        base64Encode,
+	"args":                args,
+	"bitmaskComposite":    bitmask,
 }
 
 // Usage is a replacement usage function for the flags package.
@@ -62,24 +53,39 @@ func Usage() {
 
 func main() {
 	log.SetFlags(0)
-	log.SetPrefix("gogen-enum: ")
+	log.SetPrefix(name + ": ")
 	flag.Usage = Usage
 	flag.Parse()
+
+	imports := []string{"bytes", "encoding/json"}
 
 	enums, err := loadYAMLFile(input)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	t := template.Must(template.New("").Funcs(funcMap).Parse(tmpl))
+	for _, v := range enums {
+		if v.CaseInsensitive {
+			imports = append(imports, "strings")
+			break
+		}
+	}
 
-	generator := generator{
+	gen := generator{
+		Generator:   name,
 		PackageName: *packageName,
 		InputFile:   *input,
 		OutputFile:  *output,
-		Imports:     []string{"bytes", "encoding/json"},
+		Imports:     imports,
 		EnumMap:     enums,
 	}
+
+	pipeline := func() generator {
+		return gen
+	}
+	funcMap["pipeline"] = pipeline
+
+	t := template.Must(template.New("").Funcs(funcMap).Parse(tmpl))
 
 	var f *os.File
 	if len(*output) > 0 {
@@ -89,7 +95,7 @@ func main() {
 		f = os.Stdout
 	}
 
-	err = t.Execute(f, generator)
+	err = t.ExecuteTemplate(f, "Document", gen)
 	if err != nil {
 		log.Fatal("Execute: ", err)
 		return
@@ -98,12 +104,12 @@ func main() {
 }
 
 func loadYAMLFile(filePath *string) (enumsMap, error) {
-	if filePath == nil {
-		return nil, fmt.Errorf("filePath is NIL pointer")
+	if filePath == nil || *filePath == "" {
+		return nil, fmt.Errorf("filePath not set")
 	}
 
 	if _, err := os.Stat(*filePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("YAML file [%s] does not exist", *filePath)
+		return nil, fmt.Errorf("file [%s] does not exist", *filePath)
 	}
 
 	buf, err := ioutil.ReadFile(*filePath)
@@ -121,6 +127,7 @@ func loadYAMLFile(filePath *string) (enumsMap, error) {
 }
 
 type generator struct {
+	Generator   string
 	PackageName string
 	InputFile   string
 	OutputFile  string
@@ -130,8 +137,11 @@ type generator struct {
 
 type enumsMap map[string]enum
 type enum struct {
-	Base  string   `yaml:"base"`
-	Items []string `yaml:"items"`
+	Base            string   `yaml:"base"`
+	Marshal         bool     `yaml:"marshal"`
+	Bitmask         bool     `yaml:"bitmask"`
+	CaseInsensitive bool     `yaml:"caseinsensitive"`
+	Items           []string `yaml:"items"`
 }
 
 func pp(p interface{}) string {
@@ -142,6 +152,19 @@ func pp(p interface{}) string {
 		return ""
 	}
 	return string(b)
+}
+
+func publicIdentifier(s string) string {
+
+	return lintName(strcase.ToCamel(s))
+}
+
+func privateIdentifier(s string) string {
+	return lintName(strcase.ToLowerCamel(s))
+}
+
+func first(s string) string {
+	return strings.ToLower(string(s[0]))
 }
 
 func snakeCase(s string) string {
@@ -167,123 +190,54 @@ func toSnakeCase(in string) string {
 	return string(out)
 }
 
-// commonInitialisms is a set of common initialisms.
-// Only add entries that are highly unlikely to be non-initialisms.
-// For instance, "ID" is fine (Freudian code is rare), but "AND" is not.
-// copied from golint (https://github.com/golang/lint/blob/master/lint.go)
-// NOTE: this list has been augemented with: [CA, IPv4, IPv6, OS, URN]
-var commonInitialisms = map[string]bool{
-	"ACL":   true,
-	"API":   true,
-	"ARM":   true,
-	"ASCII": true,
-	"CA":    true,
-	"CPU":   true,
-	"CSS":   true,
-	"DNS":   true,
-	"EOF":   true,
-	"GUID":  true,
-	"HTML":  true,
-	"HTTP":  true,
-	"HTTPS": true,
-	"ID":    true,
-	"IP":    true,
-	"IPv4":  true,
-	"IPv6":  true,
-	"JSON":  true,
-	"LHS":   true,
-	"OS":    true,
-	"PPC":   true,
-	"QPS":   true,
-	"RAM":   true,
-	"RHS":   true,
-	"RPC":   true,
-	"SLA":   true,
-	"SMTP":  true,
-	"SQL":   true,
-	"SSH":   true,
-	"TCP":   true,
-	"TLS":   true,
-	"TTL":   true,
-	"UDP":   true,
-	"UI":    true,
-	"UID":   true,
-	"UUID":  true,
-	"URI":   true,
-	"URL":   true,
-	"URN":   true,
-	"UTF8":  true,
-	"VM":    true,
-	"XML":   true,
-	"XMPP":  true,
-	"XSRF":  true,
-	"XSS":   true,
+func jsonEncode(s string) string {
+	return fmt.Sprintf("json:\"%s\"", s)
 }
 
-// lintName returns a different name if it should be different.
-func lintName(name string) (should string) {
-	// Fast path for simple cases: "_" and all lowercase.
-	if name == "_" {
-		return name
-	}
-	allLower := true
-	for _, r := range name {
-		if !unicode.IsLower(r) {
-			allLower = false
-			break
-		}
-	}
-	if allLower {
-		return name
+func jsonEncodeOmitEmpty(s string) string {
+	return fmt.Sprintf("json:\"%s,omitempty\"", s)
+}
+
+func backTick(s string) string {
+	return fmt.Sprintf("`%s`", s)
+}
+
+func base64Encode() string {
+	return "encode:\"base64\""
+}
+
+func args(kvs ...interface{}) (map[string]interface{}, error) {
+
+	if len(kvs)%2 != 0 {
+		return nil, fmt.Errorf("fnArgs requires even number of arguments")
 	}
 
-	// Split camelCase at any lower->upper transition, and split on underscores.
-	// Check each word for common initialisms.
-	runes := []rune(name)
-	w, i := 0, 0 // index of start of word, scan
-	for i+1 <= len(runes) {
-		eow := false // whether we hit the end of a word
-		if i+1 == len(runes) {
-			eow = true
-		} else if runes[i+1] == '_' {
-			// underscore; shift the remainder forward over any run of underscores
-			eow = true
-			n := 1
-			for i+n+1 < len(runes) && runes[i+n+1] == '_' {
-				n++
-			}
-
-			// Leave at most one underscore if the underscore is between two digits
-			if i+n+1 < len(runes) && unicode.IsDigit(runes[i]) && unicode.IsDigit(runes[i+n+1]) {
-				n--
-			}
-
-			copy(runes[i+1:], runes[i+n+1:])
-			runes = runes[:len(runes)-n]
-		} else if unicode.IsLower(runes[i]) && !unicode.IsLower(runes[i+1]) {
-			// lower->non-lower
-			eow = true
+	m := make(map[string]interface{})
+	for i := 0; i < len(kvs); i += 2 {
+		s, ok := kvs[i].(string)
+		if !ok {
+			return nil, errors.New("even args to args must be strings")
 		}
-		i++
-		if !eow {
-			continue
-		}
-
-		// [w,i) is a word.
-		word := string(runes[w:i])
-		if u := strings.ToUpper(word); commonInitialisms[u] {
-			// Keep consistent case, which is lowercase only at the start.
-			if w == 0 && unicode.IsLower(runes[w]) {
-				u = strings.ToLower(u)
-			}
-			// All the common initialisms are ASCII,
-			// so we can replace the bytes exactly.
-			copy(runes[w:], []rune(u))
-		} else if w > 0 && strings.ToLower(word) == word {
-			// already all lowercase, and not the first word, so uppercase the first character.
-			runes[w] = unicode.ToUpper(runes[w])
-		}
-		w = i
+		m[s] = kvs[i+1]
 	}
-	return string(runes)
+	return m, nil
+}
+
+func bitmask(s string, v interface{}) string {
+
+	var (
+		items  []string
+		result []string
+		ok     bool
+	)
+	items, ok = v.([]string)
+	if !ok {
+		return ""
+	}
+	// [1:] to skip over the Unknown element
+	for _, v := range items[1:] {
+		result = append(result, strcase.ToCamel(s)+lintName(v))
+	}
+	ss := strings.Join(result, " + ")
+	return ss
 }

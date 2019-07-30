@@ -1,6 +1,6 @@
 --- 
 Architecture: # processor architecture
-  base: int 
+  base: int
   items: 
     - unknown
     - x86 # 32-bit
@@ -9,22 +9,36 @@ Architecture: # processor architecture
     - ppc # PowerPC
 
 PackageManager: # package manager
-  base: uint32
+  base: uint64
+  marshal: true
+  bitmask: true
+  caseinsensitive: true
   items:
-    - unknown
-    - dpkg
-    - apk
-    - apt
-    - yum
-    - zypper
-    - brew
-    - chocolatey
-    - msi
+    - Unknown
+    - DPKG
+    - APK
+    - APT
+    - Yum
+    - Zypper
+    - Brew
+    - Chocolatey
+    - MSI
 
 AddressKind: # Type of address (Home|Office|PostalBox)
   base: int64 
+  marshal: true 
   items: 
     - Unknown
     - Home # Home address
     - Office # Office address
     - PostalBox # PO Box address
+
+Pluralize: # 
+  base: uint8
+  bitmask: true
+  items:
+    - Unknown
+    - IsPlural
+    - IsSingular
+    - Plural
+    - Singular

@@ -1,20 +1,24 @@
-# text reset
-NO_COLOR=\033[0m
-# green
-OK_COLOR=\033[32;01m
-# red
-ERROR_COLOR=\033[31;01m
-# cyan
-WARN_COLOR=\033[36;01m
-# yellow
-ATTN_COLOR=\033[33;01m
+## BOF define block
 
-ROOT_DIR := $(git rev-parse --show-toplevel)
-BIN_DIR  := ./bin
+BINARY     := gogen-enum
 
-LINTER := $(BIN_DIR)/golangci-lint
+ROOT_DIR   := $(shell git rev-parse --show-toplevel)
+BIN_DIR    := $(ROOT_DIR)/bin
+REL_DIR    := $(ROOT_DIR)/release
+SRC_DIR    := $(ROOT_DIR)/
 
-GOOS :=
+VERSION    :=`git describe --tags --dirty 2>/dev/null`
+COMMIT     :=`git rev-parse --short HEAD 2>/dev/null`
+DATE       :=`date "+%FT%T%z"`
+
+LDBASE     := github.com/gertd/$(BINARY)
+LDFLAGS    := -ldflags "-w -s -X $(LDBASE)/cmd.version=${VERSION} -X $(LDBASE)/cmd.date=${DATE} -X $(LDBASE)/cmd.commit=${COMMIT}"
+
+PLATFORMS  := windows linux darwin
+OS         = $(word 1, $@)
+
+GOARCH     ?= amd64
+GOOS       :=
 ifeq ($(OS),Windows_NT)
 	GOOS = windows
 else 
@@ -26,50 +30,71 @@ else
 		GOOS = darwin
 	endif
 endif
-GOARCH ?= amd64
 
-BINARY := gogen-enum
-VERSION:=`git describe --tags --dirty`
-COMMIT :=`git rev-parse --short HEAD 2>/dev/null`
-DATE   :=`date "+%FT%T%z"`
-PLATFORMS := windows linux darwin
-OS = $(word 1, $@)
+LINTER     := $(BIN_DIR)/golangci-lint
+LINTVERSION:= v1.15.0
+TESTRUNNER := $(GOPATH)/bin/gotestsum
 
-LDFLAGS := -ldflags "-w -s -X github.com/gertd/$(BINARY)/cmd.version=${VERSION} -X github.com/gertd/$(BINARY)/cmd.date=${DATE} -X github.com/gertd/$(BINARY)/cmd.commit=${COMMIT}"
+NO_COLOR   :=\033[0m
+OK_COLOR   :=\033[32;01m
+ERR_COLOR  :=\033[31;01m
+WARN_COLOR :=\033[36;01m
+ATTN_COLOR :=\033[33;01m
+
+## EOF define block
 
 .PHONY: all
 all: build test lint
 
-.PHONY: build
-build:
-	@echo "$(ATTN_COLOR)==> build GOOS=$(GOOS) GOARCH=$(GOARCH) VERSION=$(VERSION)@$(COMMIT) $(NO_COLOR)"
-	@GOOS=$(GOOS) GOARCH=$(GOARCH) GO111MODULE=on go build $(LDFLAGS) -o $(BIN_DIR)/$(BINARY) ./
+deps:
+	@echo -e "$(ATTN_COLOR)==> download dependencies $(NO_COLOR)"
+	@GO111MODULE=on go mod download
 
-.PHONY: test
-test:
-	@echo "$(ATTN_COLOR)==> test $(NO_COLOR)"
-	@go test -v ./...
+.PHONY: build
+build: deps
+	@echo -e "$(ATTN_COLOR)==> build GOOS=$(GOOS) GOARCH=$(GOARCH) VERSION=$(VERSION) COMMIT=$(COMMIT) DATE=$(DATE) $(NO_COLOR)"
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) GO111MODULE=on go build $(LDFLAGS) -o $(BIN_DIR)/$(BINARY) $(SRC_DIR)
+
+$(TESTRUNNER):
+	@echo -e "$(ATTN_COLOR)==> get gotestsum test runner  $(NO_COLOR)"
+	@go get -u gotest.tools/gotestsum 
+
+.PHONY: test 
+test: $(TESTRUNNER) gen
+	@echo -e "$(ATTN_COLOR)==> test $(NO_COLOR)"
+	@gotestsum --format short-verbose ./...
 
 $(LINTER):
-	@echo "$(ATTN_COLOR)==> get  $(NO_COLOR)"
-	@curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s v1.15.0
+	@echo -e "$(ATTN_COLOR)==> get  $(NO_COLOR)"
+	@curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s $(LINTVERSION)
  
 .PHONY: lint
 lint: $(LINTER)
-	@echo "$(ATTN_COLOR)==> lint $(NO_COLOR)"
-	@$(LINTER) run
-	@echo "$(NO_COLOR)\c"
+	@echo -e "$(ATTN_COLOR)==> lint $(NO_COLOR)"
+	@$(LINTER) run --enable-all
+	@echo -e "$(NO_COLOR)\c"
 
 .PHONY: $(PLATFORMS)
 $(PLATFORMS):
-	@echo "$(ATTN_COLOR)==> release GOOS=$(GOOS) GOARCH=$(GOARCH) release/$(BINARY)-$(OS)-$(GOARCH) $(NO_COLOR)"
-	@mkdir -p release
-	@GOOS=$(OS) GOARCH=$(GOARCH) GO111MODULE=on go build $(LDFLAGS) -o release/$(BINARY)-$(OS)-$(GOARCH)$(if $(findstring $(OS),windows),".exe","")
+	@echo -e "$(ATTN_COLOR)==> release GOOS=$(OS) GOARCH=$(GOARCH) $(REL_DIR)/$(BINARY)-$(OS)-$(GOARCH) $(NO_COLOR)"
+	@mkdir -p $(REL_DIR)
+	@GOOS=$(OS) GOARCH=$(GOARCH) GO111MODULE=on go build $(LDFLAGS) -o $(REL_DIR)/$(BINARY)-$(OS)-$(GOARCH)$(if $(findstring $(OS),windows),".exe","") $(SRC_DIR)
 
 .PHONY: release
-release: windows linux darwin
+release: $(PLATFORMS)
 
 .PHONY: install
 install:
-	@echo "$(ATTN_COLOR)==> install $(NO_COLOR)"
-	@GOOS=$(GOOS) GOARCH=$(GOARCH) GO111MODULE=on go install $(LDFLAGS) ./
+	@echo -e "$(ATTN_COLOR)==> install $(NO_COLOR)"
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) GO111MODULE=on go install $(LDFLAGS) $(SRC_DIR)
+
+.PHONY: clean
+clean:
+	@echo -e "$(ATTN_COLOR)==> clean $(NO_COLOR)"
+	@rm -rf $(BIN_DIR)
+	@rm -rf $(REL_DIR)
+
+.PHONY: gen
+gen:
+	@echo -e "$(ATTN_COLOR)==> generate $(NO_COLOR)"
+	@go generate ./tests/enums-gen.go
