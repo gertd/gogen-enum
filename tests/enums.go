@@ -168,7 +168,8 @@ var packageManagerID = map[PackageManager]string{
 	PackageManagerBrew:       packageManagerBrew,
 	PackageManagerChocolatey: packageManagerChocolatey,
 	PackageManagerMSI:        packageManagerMSI,
-	PackageManagerAll:        packageManagerAll}
+	PackageManagerAll:        packageManagerAll,
+}
 
 // PackageManagerName -- map string to enum constant
 var packageManagerName = map[string]PackageManager{
@@ -181,7 +182,8 @@ var packageManagerName = map[string]PackageManager{
 	strings.ToLower(packageManagerBrew):       PackageManagerBrew,
 	strings.ToLower(packageManagerChocolatey): PackageManagerChocolatey,
 	strings.ToLower(packageManagerMSI):        PackageManagerMSI,
-	strings.ToLower(packageManagerAll):        PackageManagerAll}
+	strings.ToLower(packageManagerAll):        PackageManagerAll,
+}
 
 // NewPackageManager -- Create PackageManager instance from string representation
 func NewPackageManager(k string) PackageManager {
@@ -265,7 +267,8 @@ var pluralizeID = map[Pluralize]string{
 	PluralizeIsSingular: pluralizeIsSingular,
 	PluralizePlural:     pluralizePlural,
 	PluralizeSingular:   pluralizeSingular,
-	PluralizeAll:        pluralizeAll}
+	PluralizeAll:        pluralizeAll,
+}
 
 // PluralizeName -- map string to enum constant
 var pluralizeName = map[string]Pluralize{
@@ -274,7 +277,8 @@ var pluralizeName = map[string]Pluralize{
 	pluralizeIsSingular: PluralizeIsSingular,
 	pluralizePlural:     PluralizePlural,
 	pluralizeSingular:   PluralizeSingular,
-	pluralizeAll:        PluralizeAll}
+	pluralizeAll:        PluralizeAll,
+}
 
 // NewPluralize -- Create Pluralize instance from string representation
 func NewPluralize(k string) Pluralize {
