@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-//go:generate go get github.com/gertd/gogen-enum
+//go:generate go get -u github.com/gertd/gogen-enum
 //go:generate gogen-enum -input ./enums.yaml -package tests -output ./enums.go
 //go:generate gofmt -w enums.go
 //go:generate golangci-lint run enums.go
