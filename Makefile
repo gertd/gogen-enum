@@ -44,7 +44,7 @@ ATTN_COLOR :=\033[33;01m
 ## EOF define block
 
 .PHONY: all
-all: build test lint
+all: build test
 
 deps:
 	@echo -e "$(ATTN_COLOR)==> download dependencies $(NO_COLOR)"
