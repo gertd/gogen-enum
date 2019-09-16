@@ -1,0 +1,16 @@
+--- 
+PackageManager: # package manager
+  base: uint64
+  marshal: true
+  bitmask: true
+  caseinsensitive: true
+  items:
+    - Unknown
+    - DPKG
+    - APK
+    - APT
+    - Yum
+    - Zypper
+    - Brew
+    - Chocolatey
+    - MSI

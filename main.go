@@ -57,18 +57,31 @@ func main() {
 	flag.Usage = Usage
 	flag.Parse()
 
-	imports := []string{"bytes", "encoding/json"}
+	// imports := []string{"bytes", "encoding/json"}
 
 	enums, err := loadYAMLFile(input)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	importsMap := make(map[string]interface{})
+
 	for _, v := range enums {
-		if v.CaseInsensitive {
-			imports = append(imports, "strings")
-			break
+		if v.Bitmask {
+			// nothing
 		}
+		if v.Marshal {
+			importsMap["bytes"] = true
+			importsMap["encoding/json"] = true
+		}
+		if v.CaseInsensitive {
+			importsMap["strings"] = true
+		}
+	}
+
+	imports := []string{}
+	for k := range importsMap {
+		imports = append(imports, k)
 	}
 
 	gen := generator{

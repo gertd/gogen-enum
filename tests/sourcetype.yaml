@@ -1,0 +1,10 @@
+SourceType: # AWS source type
+  base: int
+  marshal: false
+  bitmask: false
+  caseinsensitive: true
+  items: 
+    - unknown
+    - SQS # Simple Queue Service
+    - SNS # Simple Notification Service
+    - Kinesis # Kinesis Data Streams
