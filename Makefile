@@ -97,4 +97,4 @@ clean:
 .PHONY: gen
 gen:
 	@echo -e "$(ATTN_COLOR)==> generate $(NO_COLOR)"
-	@go generate ./tests/enums-gen.go
+	@go generate ./tests/generate.go

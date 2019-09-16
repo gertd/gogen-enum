@@ -1,0 +1,10 @@
+--- 
+Pluralize: # 
+  base: uint8
+  bitmask: true
+  items:
+    - Unknown
+    - IsPlural
+    - IsSingular
+    - Plural
+    - Singular
