@@ -15,11 +15,15 @@ deploy:
   provider: releases
   api_key:
     secure: rKfcgRqeX8cN0+tf+ScqCrXyzXVBLVOwdem5bKt1AQeN6y6KF5UHnt20dYcS2HO2oriPNNz7rULrVn+kLyJ22JRyy8yFdwQCueNxtxUL8wBfUjLTC2IQANQ7uOdp98550iMQK4E08nys2VYnttUSYt9uIo8Xskr2HclmSN42MOjKf9gZxAksLGXGoD9ieJwIjTkX/l0Mwvzt80+EaeZyHnBTVm4uu4unz+2DFRxF/R3tl1zQqvxdo6KB89Riso95otMTfEF5fcOgmso/c8T5OoDvdEmPkZAmAt9JWV/+wv6c85/TQxzfWxgsNBhRceU1WKr1WvPKCIU8tib7kADYJCX8nyqn9SxUGA/AwOuGg9mB7SbfNdf5jQOd5Hr8IstRK1OJCASLoMPzZ/hzgw+CQ2gu0CvkEdl5sWM9gJckXA7GWxRy3GlRbCKBmHql43bzcpA1Xh81+MFqaFBBu+c8sEfn6OhIRg3VDO2+hk3+nSGuBp36Dpje/NZHy5kJY5RJU6efV34kl+otWY4JghGRgeTb3UiMReFqeoGVlN8tKoNxBvH9SGLqemY6LYcoHUTksNhu+RJ29E1wWK3wIa3Kip4lfXpiC+eN1GnacdQMYHmOviDbmjq8o7DzHi05vBhtTSpOtpDfRl8zNz1hZVqD2gHtNVGepg1/yaM0+JITrbw=
-file_glob: true
-file: release/*
-skip_cleanup: true
-on:
-  tags: true
+  file_glob: true
+  file: release/*
+  skip_cleanup: true
+  on:
+    tags: true
+    repo: gertd/gogen-enum
+    branches:
+      only:
+        - master
 notifications:
   email: false
 env:
